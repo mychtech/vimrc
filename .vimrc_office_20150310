@@ -1,0 +1,59 @@
+"Vi互換モードをオフ$
+set nocompatible$
+$
+"ファイル名と内容によってファイルタイプを判別し、ファイルタイププラグインを有効にする$
+filetype indent plugin on$
+$
+"色付けをオン$
+syntax on$
+$
+"バッファを保存しなくても他のバッファを表示できるようにする$
+set hidden$
+$
+"コマンドライン補完を便利にする$
+set wildmenu$
+$
+"タイプ途中のコマンドを画面最下行に表示$
+set showcmd$
+$
+"検索語を強調表示$
+set hlsearch$
+$
+"検索時に大文字・小文字を区別しない。$
+"ただし、検索語に大文字小文字が混在しているときは区別する$
+set ignorecase$
+set smartcase$
+$
+"オートインデント、改行、インサートモード開始直後にバックスペースキーで削除できるようにする。$
+set backspace=indent,eol,start$
+$
+"オートインデント$
+set autoindent$
+$
+"移動コマンドを使ったとき、行頭に移動しない$
+set nostartofline$
+$
+"画面最下行にルーラーを表示する$
+set ruler$
+$
+"ステータスラインを常に表示する$
+set laststatus=2$
+$
+"バッファが変更されているとき、コマンドをエラーにするのではなく、保存するかどうか確認を求める$
+set confirm$
+$
+"行番号を表示$
+set number$
+$
+"ランタイムパスを作成する$
+set runtimepath^=$HOME/vim$
+$
+"solarized設定$
+"事前設定$
+"let g:solarized_termtrans=1$
+"let g:solarized_bold=1$
+"let g:solarized_underline=1$
+"let g:solarized_italic=1$
+"syntax enable$
+"set background=dark$
+"colorscheme solarized$
