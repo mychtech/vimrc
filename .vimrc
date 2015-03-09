@@ -44,6 +44,8 @@ autocmd!
 autocmd InsertEnter * highlight StatusLine guifg=#ccdc90 guibg=#2E4340
 autocmd InsertLeave * highlight StatusLine guifg=#2E4340 guibg=#ccdc90
 augroup END
+" jjを入力するとESC
+inoremap <silent> jj <ESC>
 
 "---------------------------------------------------------------------------
 " 色設定
@@ -97,13 +99,13 @@ set laststatus=2
 set statusline=[%{&fileencoding}][\%{&fileformat}]\ %F%m%r%=<%c:%l>
 "---------------------------------------------------------------------------
 " GNU Globalの設定
-"Ctrl+t :Gtags と入力する
+"Ctrl+g :Gtags と入力する
 "Ctrl+h :カーソル下文字列でcurrentのソースコードの grep
 "Ctrl+i 開いているファイルに定義されている関数の一覧を表示
 "Ctrl+j カーソル位置の関数へジャンプ
 "Ctrl+n 次の検索結果へジャンプする
 "Ctrl+p 前の検索結果へジャンプする
-map <C-t> :Gtags
+map <C-g> :Gtags
 map <C-h> :Gtags -gl<CR>
 map <C-i> :Gtags -f %<CR>
 map <C-j> :GtagsCursor<CR>
@@ -163,6 +165,7 @@ function! IMCtrl(cmd)
   return ''
 endfunction
 
+" 以下NeoBundleに関する記述
 " neobundle settings {{{
 if has('vim_starting')
   set nocompatible
@@ -351,14 +354,18 @@ NeoBundle 'rcmdnk/vim-markdown'
 let g:vim_markdown_folding_disabled = 1
 " }}}
 
+NeoBundle 'scrooloose/syntastic'
+let g:syntastic_enable_signs=1
+let g:syntastic_auto_loc_list=2
+
+NeoBundle 'TwitVim'
+let twitvim_force_ssl = 1 
+let twitvim_count = 40
+
 " vimrcに記述されたプラグインでインストールされていないものがないかチェックする
 NeoBundleCheck
 call neobundle#end()
 filetype plugin indent on
-
-NeoBundle 'scrooloose/syntastic'
-let g:syntastic_enable_signs=1
-let g:syntastic_auto_loc_list=2
 
 "solarized
 syntax enable 
