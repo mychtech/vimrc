@@ -1,0 +1,262 @@
+Sub 控除時間の設定()
+'
+' 控除時間の設定 Macro
+'
+' Keyboard Shortcut: Ctrl+e
+
+    ' 控除が必要な時間がなくなるまで繰り返す
+    Do While Range("K40") > Range("J40") * 60
+    
+        ' 残りの控除時間
+        Dim kTime As Integer
+        kTime = Range("K40") - Range("J40") * 60
+        
+        ' 最大の労働時間のうち残業時間を求める
+        Dim zTime As Integer
+        zTime = Range("K" & MaxRow) - 450
+        
+        ' 控除時間が残業時間より長い場合
+        If kTime > zTime Then
+            ' 残業時間をそのまま控除する
+            Range("J" & MaxRow) = zTime
+        
+        ' 控除時間が残業時間より短い場合
+        Else
+            ' 残りの控除時間を控除する
+            Range("J" & MaxRow) = kTime
+            
+        End If
+    
+    Loop
+
+End Sub
+
+' 列「労働時間」の最大値を求める
+Function MaxRow() As Long
+
+    Dim i As Integer
+    Dim mRow As Integer ' 最大値のある行
+    Dim mTime As Integer ' 確認済の行の最大値
+    mTime = 450
+    Dim eRow As Integer ' 確認する列の最大値
+    eRow = 33
+    
+    ' 列「労働時間」の上から確認する
+    For i = 3 To eRow Step 1
+    
+        If Range("K" & i) > mTime Then
+        
+            mTime = Range("K" & i)
+            mRow = i
+        
+        End If
+    
+    Next i
+    
+    MaxRow = mRow
+
+End Function
+
+Sub プロジェクトの割当()
+' プロジェクト割当_上から順に Macro
+' プロジェクト名の上から順に労働時間を割り振る 端数は無視し、最終日に割り当てる
+'
+' Keyboard Shortcut: Ctrl+r
+
+    Dim i As Integer
+    Dim sRow As Integer ' 日付の行始め
+    sRow = 3
+    Dim eRow As Integer ' 日付の行終わり
+    eRow = 33
+    Dim pRow As Integer ' 割り当て中のプロジェクト
+    pRow = 40
+    
+    ' 有給休暇を入力
+    For i = sRow To eRow Step 1
+        If Range("F" & i) = Range("L39") Then
+            Range("L" & i) = Range("L39")
+        End If
+    Next i
+    
+    ' 共通間接、プロジェクトを入力
+    For i = sRow To eRow Step 1
+    
+        ' 労働時間が入力されており、プロジェクトが入力されていない場合
+        If Range("K" & i) <> "" And Range("L" & i) = "" Then
+        
+            ' 勤務時間が割り当て中のプロジェクトの残り時間よりも少ない場合
+            If Range("K" & i) <= Range("N" & pRow) - Range("O" & pRow) Then
+            
+                ' プロジェクトを割り当てる
+                Range("L" & i) = Range("L" & pRow)
+                
+            ' 勤務時間が割り当て中のプロジェクトの残り時間よりも多い場合
+            Else
+            
+                ' 次のプロジェクトへ進む
+                pRow = pRow + 1
+                ' 勤務時間の入力は1行戻る
+                i = i - 1
+            
+            End If
+        
+        End If
+    
+    Next i
+End Sub
+
+Sub 出勤退勤時刻の整合性チェック()
+' 仮想デスクトップのログイン・ログアウト時刻から日報の出勤・退勤時刻を算出する
+    
+    ' 描画の停止
+    Application.ScreenUpdating = False
+    
+    Dim num1 As Integer
+    
+    ' 仮想デスクトップの起動時刻、終了時刻、出勤時刻、退勤時刻に転記する
+     ' 出勤時刻と退勤時刻を転記する
+        For num1 = 3 To 33 Step 1
+        
+            ' セルの書式の初期化
+            Range("G" & num1).Interior.ColorIndex = Range("P4").Interior.ColorIndex
+            Range("H" & num1).Interior.ColorIndex = Range("P4").Interior.ColorIndex
+            Range("G" & num1).Font.ColorIndex = 0
+            Range("H" & num1).Font.ColorIndex = 0
+            
+            Call CheckGH(num1)
+            Call CulcI(num1)
+            
+        Next num1
+    
+    ' 描画の再開
+    Application.ScreenUpdating = True
+
+End Sub
+
+
+' 出勤・退勤時刻の整合性チェック
+Sub CheckGH(ByVal num1 As Integer)
+
+    ' 休日チェック
+    Dim holiday As Integer
+    holiday = 0
+    If Range("C" & num1) = "休" Then
+        holiday = 1
+    End If
+    If Range("F" & num1) = "有給休暇" Then
+        holiday = 2
+    ElseIf Range("F" & num1) = "休日出勤" Then
+        holiday = 3
+    ElseIf Range("F" & num1) = "振替休日" Then
+        holiday = 4
+    End If
+
+    ' 出勤日に出勤時刻が記入されていることを確認
+    ' 出勤日に出勤時刻が記入されていない場合
+    If Range("G" & num1) = "" Then
+    
+        ' 平日または休日出勤の場合
+        If holiday = 0 Or holiday = 3 Then
+        
+            ' セルの背景色を赤色にする
+            Range("G" & num1).Interior.ColorIndex = 3
+        
+        End If
+    
+    ' 出勤日に出勤時刻が記入されている場合
+    ' 出勤時刻のチェック（該当箇所を赤字に変更）
+    Else
+    
+        ' 基準時刻よりも遅い場合
+        ' C時間勤務 または コアタイム解除 または 休日出勤の場合を除く
+        If Range("G" & num1) > Range("G35") And Range("E" & num1) <> "コアタイム解除" And Range("F" & num1) <> "休日出勤" Then
+
+            ' 文字色を赤色にする
+            Range("G" & num1).Font.ColorIndex = 3
+        
+        End If
+
+    End If
+
+    ' 出勤日に退勤時刻が記入されていることを確認
+    ' 出勤日に退勤時刻が記入されていない場合
+    If Range("H" & num1) = "" Then
+    
+        ' 休日でない かつ 有給休暇でない かつ 振休でない場合
+        If holiday = 0 Or holiday = 3 Then
+        
+            ' セルの背景色を赤色にする
+            Range("H" & num1).Interior.ColorIndex = 3
+        
+        End If
+    
+    ' 出勤日に出勤、退勤時刻が記入されている場合
+    ' 退勤時刻のチェック（該当箇所を赤字に変更）
+    Else
+    
+        ' 基準時刻よりも遅い場合
+        ' C時間勤務場合は申請時刻よりも遅い場合
+        If (Range("H" & num1) > Range("H36") And Range("D" & num1) = "") Or (Range("D" & num1) <> "" And Range("H" & num1) > (22 / 24 + Range("D" & num1) / (24 * 60))) Then
+        
+            ' 文字色を赤色にする
+            Range("H" & num1).Font.ColorIndex = 3
+        
+        End If
+
+    End If
+
+End Sub
+
+' 出勤・退勤時刻から勤務時間を計算する
+Sub CulcI(ByVal num1 As Integer)
+
+    ' 出勤時刻および退勤時刻が入力されている場合、勤務時間を計算する
+    If Range("G" & num1) <> "" And Range("H" & num1) <> "" Then
+    
+        Range("I" & num1) = (Range("H" & num1) - Range("G" & num1)) * 24 * 60
+        
+        ' コアタイム解除でない場合、勤務時間から昼休みの60分を控除する
+        If Range("E" & num1) = "" Then
+            Range("I" & num1) = Range("I" & num1) - 60
+        End If
+    
+    End If
+    
+    ' 休日出社で450分に満たない場合は450分に増やす
+    If Range("F" & num1) = "休日出社" And Range("I" & num1) < 450 Then
+        Range("I" & num1) = 450
+    End If
+    
+End Sub
+
+Sub 仮想デスクトップログから転記()
+'
+        ' 描画の停止
+    Application.ScreenUpdating = False
+    
+    Dim num1 As Integer
+   
+    For num1 = 3 To 33 Step 1
+        ' 出勤時刻の転記
+        If Range("M" & num1) <> "" Then
+            dTime = Range("M" & num1)
+            Range("G" & num1) = Hour(dTime) & ":" & Minute(dTime)
+            Range("G" & num1) = Application.WorksheetFunction.Floor(Range("G" & num1), 1 / (24 * 6))
+        End If
+        
+        ' 退勤時刻の転記
+        If Range("N" & num1) <> "" Then
+    
+            dTime = Range("N" & num1)
+            Range("H" & num1) = Hour(dTime) & ":" & Minute(dTime)
+            Range("H" & num1) = Application.WorksheetFunction.Floor(Range("H" & num1) + 1 / (24 * 6 + 0.1), 1 / (24 * 6))
+    
+        End If
+        
+        ' 有給休暇の勤務時間の記入
+        If Range("F" & num1) = "有給休暇" Then
+            Range("G" & num1) = "9:00"
+            Range("H" & num1) = "17:30"
+        End If
+    Next num1
+End Sub
