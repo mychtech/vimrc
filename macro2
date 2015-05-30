@@ -1,0 +1,156 @@
+Sub 仮想デスクトップログから転記()
+'
+' 仮想デスクトップログから転記 Macro
+'
+' Keyboard Shortcut: Ctrl+q
+'
+' 描画の停止
+    Application.ScreenUpdating = False
+    
+    Dim num1 As Integer
+    For num1 = 3 To 33 Step 1
+    
+    ' 出勤時刻の転記
+    If Range("L" & num1) <> "" Then
+        dTime = Range("L" & num1)
+        Range("F" & num1) = Hour(dTime) & ":" & Minute(dTime)
+        Range("F" & num1) = Application.WorksheetFunction.Floor(Range("F" & num1), 1 / (24 * 6))
+    End If
+    
+    ' 退勤時刻の転記
+    If Range("M" & num1) <> "" Then
+        dTime = Range("M" & num1)
+        Range("G" & num1) = Hour(dTime) & ":" & Minute(dTime)
+        Range("G" & num1) = Application.WorksheetFunction.Floor(Range("G" & num1) + 1 / (24 * 6 + 0.1), 1 / (24 * 6))
+    End If
+    
+    ' 有給休暇の勤務時間の記入
+    If Range("E" & num1) = "有給休暇" Then
+        Range("F" & num1) = "9:00"
+        Range("G" & num1) = "17:30"
+        End If
+    Next num1
+End Sub
+
+
+Sub 出勤退勤時刻の整合性チェック()
+'
+' 出勤退勤時刻の整合性チェック Macro
+'
+' Keyboard Shortcut: Ctrl+w
+'
+    ' 描画の停止
+    Application.ScreenUpdating = False
+    
+    Dim num1 As Integer
+    
+    ' 仮想デスクトップの起動時刻、終了時刻、出勤時刻、退勤時刻に転記する
+    ' 出勤時刻と退勤時刻を転記する
+    For num1 = 3 To 33 Step 1
+    
+    ' セルの書式の初期化
+    Range("F" & num1).Interior.ColorIndex = Range("P4").Interior.ColorIndex
+    Range("G" & num1).Interior.ColorIndex = Range("P4").Interior.ColorIndex
+    Range("F" & num1).Font.ColorIndex = 0
+    Range("G" & num1).Font.ColorIndex = 0
+    Call CheckGH(num1)
+    Call CulcI(num1)
+    Next num1
+    
+    ' 描画の再開
+    Application.ScreenUpdating = True
+End Sub
+    
+' 出勤・退勤時刻の整合性チェック
+Sub CheckGH(ByVal num1 As Integer)
+    
+    ' 休日チェック
+    Dim holiday As Integer
+    holiday = 0
+    If Range("B" & num1) = "休" Then
+    holiday = 1
+    End If
+    If Range("E" & num1) = "有給休暇" Then
+    holiday = 2
+    ElseIf Range("E" & num1) = "休日出勤" Then
+    holiday = 3
+    ElseIf Range("E" & num1) = "振替休日" Then
+    holiday = 4
+    End If
+    
+    ' 出勤日に出勤時刻が記入されていることを確認
+    ' 出勤日に出勤時刻が記入されていない場合
+    If Range("F" & num1) = "" Then
+    
+        ' 平日または休日出勤の場合
+        If holiday = 0 Or holiday = 3 Then
+        
+            ' セルの背景色を赤色にする
+            Range("F" & num1).Interior.ColorIndex = 3
+            
+        End If
+        
+    ' 出勤日に出勤時刻が記入されている場合
+    ' 出勤時刻のチェック（該当箇所を赤字に変更）
+    Else
+        ' 基準時刻よりも遅い場合
+        ' C時間勤務 または コアタイム解除 または 休日出勤の場合を除く
+        If Range("F" & num1) > Range("F36") And Range("D" & num1) <> "コアタイム解除" And Range("E" & num1) <> "休日出勤" Then
+        
+        ' 文字色を赤色にする
+        Range("F" & num1).Font.ColorIndex = 3
+        End If
+        
+    End If
+    
+    ' 出勤日に退勤時刻が記入されていることを確認
+    ' 出勤日に退勤時刻が記入されていない場合
+    If Range("G" & num1) = "" Then
+    
+        ' 休日でない かつ 有給休暇でない かつ 振休でない場合
+        If holiday = 0 Or holiday = 3 Then
+            ' セルの背景色を赤色にする
+            Range("G" & num1).Interior.ColorIndex = 3
+        End If
+        
+    ' 出勤日に出勤、退勤時刻が記入されている場合
+    ' 退勤時刻のチェック（該当箇所を赤字に変更）
+    Else
+    
+        ' 基準時刻よりも遅い場合
+        ' C時間勤務場合は申請時刻よりも遅い場合
+        If (Range("G" & num1) > Range("G36") And Range("C" & num1) = "") Or (Range("C" & num1) <> "" And Range("G" & num1) > (22 / 24 + Range("C" & num1) / (24 * 60))) Then
+            ' 文字色を赤色にする
+            Range("G" & num1).Font.ColorIndex = 3
+        End If
+        
+    End If
+    
+End Sub
+    
+' 出勤・退勤時刻から勤務時間を計算する
+Sub CulcI(ByVal num1 As Integer)
+
+    ' 出勤時刻および退勤時刻が入力されている場合、勤務時間を計算する
+    If Range("F" & num1) <> "" And Range("G" & num1) <> "" Then
+    
+        Range("H" & num1) = (Range("G" & num1) - Range("F" & num1)) * 24 * 60
+        
+        ' コアタイム解除でない場合、勤務時間から昼休みの60分を控除する
+        If Range("D" & num1) = "" Then
+            Range("H" & num1) = Range("H" & num1) - 60
+        End If
+    
+    ' 出勤時刻および退勤時刻が入力されていない場合、勤務時間を削除する
+    Else
+    
+        Range("H" & num1) = ""
+    
+    End If
+    
+    ' 休日出社で450分に満たない場合は450分に増やす
+    If Range("E" & num1) = "休日出社" And Range("H" & num1) < 450 Then
+        Range("H" & num1) = 450
+    End If
+    
+End Sub
