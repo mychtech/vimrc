@@ -1,3 +1,30 @@
+' 行の定義
+Public Const C_SDAY     As Integer = 3  ' 日付行の開始
+Public C_EDAY           As Integer      ' 日付行の終了
+Public Const C_CODE     As Integer = 36 ' プロジェクト行の開始
+
+' 列の定義
+Public Const C_DATE     As Integer = 1  ' 日付
+Public Const C_HOLIDAY  As Integer = 2  ' 休日
+Public Const C_C_OVER   As Integer = 3  ' C残
+Public Const C_CORE     As Integer = 4  ' コアタイム解除
+Public Const C_VACATION As Integer = 5  ' 休暇
+Public Const C_ARRIVE1  As Integer = 6  ' 出勤時刻1
+Public Const C_LEAVE1   As Integer = 7  ' 退勤時刻1
+Public Const C_ARRIVE2  As Integer = 8  ' 出勤時刻2
+Public Const C_LEAVE2   As Integer = 9  ' 退勤時刻2
+Public Const C_HOURS1   As Integer = 10 ' 勤務時間
+Public Const C_SUB_B    As Integer = 11 ' 控除時間(B)
+Public Const C_SUB_C    As Integer = 12 ' 控除時間(C)
+Public Const C_HOURS2   As Integer = 13 ' 入力時間
+Public Const C_PROJECT  As Integer = 14 ' プロジェクト
+Public Const C_ON       As Integer = 15 ' 起動時刻
+Public Const C_OFF      As Integer = 16 ' 終了時刻
+
+' 定数
+Public Const C_STIME As String = "H36" ' 基準時刻（出勤）
+Public Const C_ETIME As String = "I36" ' 基準時刻（退勤）
+
 Sub 仮想デスクトップログから転記()
 '
 ' 仮想デスクトップログから転記 Macro
@@ -7,29 +34,60 @@ Sub 仮想デスクトップログから転記()
 ' 描画の停止
     Application.ScreenUpdating = False
     
-    Dim num1 As Integer
-    For num1 = 3 To 33 Step 1
+    C_EDAY = Cells(35, 1) + C_SDAY
+    Dim row As Integer
+    Dim dTime As Date
     
-    ' 出勤時刻の転記
-    If Range("L" & num1) <> "" Then
-        dTime = Range("L" & num1)
-        Range("F" & num1) = Hour(dTime) & ":" & Minute(dTime)
-        Range("F" & num1) = Application.WorksheetFunction.Floor(Range("F" & num1), 1 / (24 * 6))
-    End If
-    
-    ' 退勤時刻の転記
-    If Range("M" & num1) <> "" Then
-        dTime = Range("M" & num1)
-        Range("G" & num1) = Hour(dTime) & ":" & Minute(dTime)
-        Range("G" & num1) = Application.WorksheetFunction.Floor(Range("G" & num1) + 1 / (24 * 6 + 0.1), 1 / (24 * 6))
-    End If
-    
-    ' 有給休暇の勤務時間の記入
-    If Range("E" & num1) = "有給休暇" Then
-        Range("F" & num1) = "9:00"
-        Range("G" & num1) = "17:30"
+    ' 上から順にログを転記
+    For row = C_SDAY To C_EDAY Step 1
+        
+        ' 値のクリア
+        Cells(row, C_ARRIVE1) = ""
+        Cells(row, C_LEAVE1) = ""
+        Cells(row, C_ARRIVE2) = ""
+        Cells(row, C_LEAVE2) = ""
+        
+        ' 前日に日付変更後まで勤務した場合
+        If (row > C_SDAY) And (Cells(row - 1, C_OFF) > Cells(row, C_DATE)) Then
+            ' 出勤時刻を0時に設定
+            Cells(row, C_ARRIVE1) = 0
+            ' 退勤時刻を仮想デスクトップ終了時刻に設定
+            dTime = Cells(row - 1, C_OFF)
+            Cells(row, C_LEAVE1) = Hour(dTime) & ":" & Minute(dTime)
+            Cells(row, C_LEAVE1) = Application.WorksheetFunction.Floor(Cells(row, C_LEAVE1) + 1 / (24 * 6 + 0.1), 1 / (24 * 6))
         End If
-    Next num1
+        
+        ' 出勤時刻の転記
+        If Cells(row, C_ON) <> "" Then
+            dTime = Cells(row, C_ON)
+            Cells(row, C_ARRIVE2) = Hour(dTime) & ":" & Minute(dTime)
+            Cells(row, C_ARRIVE2) = Application.WorksheetFunction.Floor(Cells(row, C_ARRIVE2), 1 / (24 * 6))
+        End If
+        
+        ' 退勤時刻の転記
+        If Cells(row, C_OFF) <> "" Then
+            ' 退勤時刻が0時以降の場合、24時に設定
+            If Cells(row, C_OFF) > Cells(row, C_DATE) + 1 Then
+                Cells(row, C_LEAVE2) = "24:00:00"
+            ' 退勤時刻が0時以前の場合、ログオフ時刻を設定
+            Else
+                dTime = Cells(row, C_OFF)
+                Cells(row, C_LEAVE2) = Hour(dTime) & ":" & Minute(dTime)
+                Cells(row, C_LEAVE2) = Application.WorksheetFunction.Floor(Cells(row, C_LEAVE2) + 1 / (24 * 6 + 0.1), 1 / (24 * 6))
+            End If
+        End If
+        
+        ' 有給休暇の勤務時間の記入
+        If Range("E" & row) = "有給休暇" Then
+            Cells(row, C_ARRIVE2) = "9:00"
+            Cells(row, C_LEAVE2) = "17:30"
+            End If
+    Next row
+    
+    
+    ' 描画の再開
+    Application.ScreenUpdating = True
+
 End Sub
 
 
@@ -42,51 +100,76 @@ Sub 出勤退勤時刻の整合性チェック()
     ' 描画の停止
     Application.ScreenUpdating = False
     
-    Dim num1 As Integer
+    Dim row As Integer
     
     ' 仮想デスクトップの起動時刻、終了時刻、出勤時刻、退勤時刻に転記する
     ' 出勤時刻と退勤時刻を転記する
-    For num1 = 3 To 33 Step 1
+    For row = 3 To 33 Step 1
     
-    ' セルの書式の初期化
-    Range("F" & num1).Interior.ColorIndex = Range("P4").Interior.ColorIndex
-    Range("G" & num1).Interior.ColorIndex = Range("P4").Interior.ColorIndex
-    Range("F" & num1).Font.ColorIndex = 0
-    Range("G" & num1).Font.ColorIndex = 0
-    Call CheckGH(num1)
-    Call CulcI(num1)
-    Next num1
+        ' セルの書式の初期化
+        Cells(row, C_ARRIVE1).Interior.ColorIndex = Range("R4").Interior.ColorIndex
+        Cells(row, C_LEAVE1).Interior.ColorIndex = Range("R4").Interior.ColorIndex
+        Cells(row, C_ARRIVE2).Interior.ColorIndex = Range("R4").Interior.ColorIndex
+        Cells(row, C_LEAVE2).Interior.ColorIndex = Range("R4").Interior.ColorIndex
+        Cells(row, C_ARRIVE1).Font.ColorIndex = 0
+        Cells(row, C_LEAVE1).Font.ColorIndex = 0
+        Cells(row, C_ARRIVE2).Font.ColorIndex = 0
+        Cells(row, C_LEAVE2).Font.ColorIndex = 0
+        
+        ' 整合性チェック
+        Call CheckGH(row)
+        ' 勤務時間の算出
+        Call CulcI(row)
+    
+    Next row
     
     ' 描画の再開
     Application.ScreenUpdating = True
+    
 End Sub
     
 ' 出勤・退勤時刻の整合性チェック
-Sub CheckGH(ByVal num1 As Integer)
+Sub CheckGH(ByVal row As Integer)
+
+    Dim time1 As Date
+    Dim time2 As Date
     
     ' 休日チェック
     Dim holiday As Integer
     holiday = 0
-    If Range("B" & num1) = "休" Then
-    holiday = 1
+    
+    If Cells(row, C_HOLIDAY) = "休" Or Cells(row, C_VACATION) = "振替休日" Then
+        holiday = 1
     End If
-    If Range("E" & num1) = "有給休暇" Then
-    holiday = 2
-    ElseIf Range("E" & num1) = "休日出勤" Then
-    holiday = 3
-    ElseIf Range("E" & num1) = "振替休日" Then
-    holiday = 4
+    If Cells(row, C_VACATION) = "有給休暇" Then
+        holiday = 2
+    ElseIf Cells(row, C_VACATION) = "休日出勤" Then
+        holiday = 4
     End If
     
+    ' ★退勤時刻1★
+    ' 退勤時刻1が記入されている場合
+    If Cells(row, C_LEAVE1) <> "" Then
+        ' 前日のC残-2時間であることを確認
+        time1 = Hour(Cells(row, C_LEAVE1)) & ":" & Minute(Cells(row, C_LEAVE1))
+        time2 = Hour(Cells(row - 1, C_C_OVER) / (24 * 60) - 1 / 12) & ":" & Minute(Cells(row - 1, C_C_OVER) / (24 * 60) - 1 / 12)
+        ' 前日のC残-2時間でない場合は赤字にする
+        If time1 <> time2 Then
+            Cells(row, C_ARRIVE1).Font.ColorIndex = 3
+            Cells(row, C_LEAVE1).Font.ColorIndex = 3
+        End If
+    End If
+    
+    ' ★出勤時刻2★
     ' 出勤日に出勤時刻が記入されていることを確認
     ' 出勤日に出勤時刻が記入されていない場合
-    If Range("F" & num1) = "" Then
+    If Cells(row, C_ARRIVE2) = "" Then
     
         ' 平日または休日出勤の場合
         If holiday = 0 Or holiday = 3 Then
         
             ' セルの背景色を赤色にする
-            Range("F" & num1).Interior.ColorIndex = 3
+            Cells(row, C_ARRIVE2).Interior.ColorIndex = 3
             
         End If
         
@@ -95,22 +178,23 @@ Sub CheckGH(ByVal num1 As Integer)
     Else
         ' 基準時刻よりも遅い場合
         ' C時間勤務 または コアタイム解除 または 休日出勤の場合を除く
-        If Range("F" & num1) > Range("F36") And Range("D" & num1) <> "コアタイム解除" And Range("E" & num1) <> "休日出勤" Then
+        If Cells(row, C_ARRIVE2) > Range(C_STIME) And Range("D" & row) <> "コアタイム解除" And Range("E" & row) <> "休日出勤" Then
         
         ' 文字色を赤色にする
-        Range("F" & num1).Font.ColorIndex = 3
+        Cells(row, C_ARRIVE2).Font.ColorIndex = 3
         End If
         
     End If
     
+    ' ★退勤時刻2★
     ' 出勤日に退勤時刻が記入されていることを確認
     ' 出勤日に退勤時刻が記入されていない場合
-    If Range("G" & num1) = "" Then
+    If Cells(row, C_LEAVE2) = "" Then
     
         ' 休日でない かつ 有給休暇でない かつ 振休でない場合
         If holiday = 0 Or holiday = 3 Then
             ' セルの背景色を赤色にする
-            Range("G" & num1).Interior.ColorIndex = 3
+            Cells(row, C_LEAVE2).Interior.ColorIndex = 3
         End If
         
     ' 出勤日に出勤、退勤時刻が記入されている場合
@@ -119,38 +203,53 @@ Sub CheckGH(ByVal num1 As Integer)
     
         ' 基準時刻よりも遅い場合
         ' C時間勤務場合は申請時刻よりも遅い場合
-        If (Range("G" & num1) > Range("G36") And Range("C" & num1) = "") Or (Range("C" & num1) <> "" And Range("G" & num1) > (22 / 24 + Range("C" & num1) / (24 * 60))) Then
+        If (Cells(row, C_LEAVE2) > Range(C_ETIME) And Cells(row, C_C_OVER) = "") Or (Cells(row, C_C_OVER) <> "" And Cells(row, C_LEAVE2) > (22 / 24 + Cells(row, C_C_OVER) / (24 * 60))) Then
             ' 文字色を赤色にする
-            Range("G" & num1).Font.ColorIndex = 3
+            Cells(row, C_LEAVE2).Font.ColorIndex = 3
         End If
-        
     End If
     
 End Sub
     
 ' 出勤・退勤時刻から勤務時間を計算する
-Sub CulcI(ByVal num1 As Integer)
+Sub CulcI(ByVal row As Integer)
+
+    ' C時間控除
+    If Cells(row, C_LEAVE1) <> "" And Cells(row, C_ARRIVE2) <> "" And Cells(row, C_LEAVE1) < (5 / 24) Then
+    
+        Cells(row, C_SUB_C) = (5 / 24 - Cells(row, C_LEAVE1)) * 24 * 60
+    
+    Else
+        
+        Cells(row, C_SUB_C) = ""
+    
+    End If
 
     ' 出勤時刻および退勤時刻が入力されている場合、勤務時間を計算する
-    If Range("F" & num1) <> "" And Range("G" & num1) <> "" Then
+    If Cells(row, C_ARRIVE2) <> "" And Cells(row, C_LEAVE2) <> "" Then
     
-        Range("H" & num1) = (Range("G" & num1) - Range("F" & num1)) * 24 * 60
+        Cells(row, C_HOURS1) = (Cells(row, C_LEAVE2) - Cells(row, C_ARRIVE2)) * 24 * 60
+        
+        ' 日付を超えたC残勤務している場合、勤務時間を加算する
+        If Cells(row, C_ARRIVE1) <> "" And Cells(row, C_LEAVE1) <> "" Then
+        
+            Cells(row, C_HOURS1) = Cells(row, C_HOURS1) + (Cells(row, C_LEAVE1) - Cells(row, C_ARRIVE1)) * 24 * 60
+            
+        End If
         
         ' コアタイム解除でない場合、勤務時間から昼休みの60分を控除する
-        If Range("D" & num1) = "" Then
-            Range("H" & num1) = Range("H" & num1) - 60
+        If Range("D" & row) = "" Then
+            Cells(row, C_HOURS1) = Cells(row, C_HOURS1) - 60
         End If
     
     ' 出勤時刻および退勤時刻が入力されていない場合、勤務時間を削除する
     Else
-    
-        Range("H" & num1) = ""
-    
+        Cells(row, C_HOURS1) = ""
     End If
     
     ' 休日出社で450分に満たない場合は450分に増やす
-    If Range("E" & num1) = "休日出社" And Range("H" & num1) < 450 Then
-        Range("H" & num1) = 450
+    If Range("E" & row) = "休日出社" And Cells(row, C_HOURS1) < 450 Then
+        Cells(row, C_HOURS1) = 450
     End If
     
 End Sub
